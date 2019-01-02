@@ -9,7 +9,7 @@ const buzzer = require('./buzzer/buzzer.router');
 
 const app = express();
 const hostname = '0.0.0.0';
-const port = 8011;
+const port = 8012;
 
 util.cachedUrl="52.74.209.117:80";
 
