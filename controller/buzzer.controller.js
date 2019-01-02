@@ -513,3 +513,50 @@ exports.updateRoundPoints = function(req,res,tpoolconn,redirectParam,callback) {
         callback(null, outJson);
     }  
 } 
+
+exports.buzzerClick = function(req,res,tpoolconn,redirectParam,callback) { 
+    let coIdn = redirectParam.coIdn;
+    let applIdn = redirectParam.applIdn;
+    let source = redirectParam.source || req.body.source;
+
+    let userIdn = req.body.userIdn || '';
+
+    let outJson = {};
+    let params=[];
+    let fmt = {};
+    let resultFinal = {};
+
+    if(userIdn != ''){
+        let insertBuzzerQ="insert into buzzer_log(user_idn,log_ts) \n" +
+                "values($1,current_timestamp)";
+            
+        params.push(userIdn);
+        coreDB.executeTransSql(tpoolconn,insertBuzzerQ,params,fmt,function(error,result){
+            if(error){
+                coreDB.doTransRollBack(tpoolconn);
+                outJson["status"]="FAIL";
+                outJson["message"]="Error In buzzer_log query!"+error.message;
+                callback(null,outJson);
+            }else{    
+                var len = result.rowCount;                    
+                coreDB.doTransCommit(tpoolconn);
+                if(len > 0){
+                    outJson["result"]=resultFinal;
+                    outJson["status"]="SUCCESS";
+                    outJson["message"]="Buzzer Log Inserted Successfully";
+                }else{
+                    coreDB.doTransRollBack(tpoolconn);
+                    outJson["result"]=resultFinal;
+                    outJson["status"]="FAIL";
+                    outJson["message"]="Buzzer Log Inserted Failed";
+                }
+                callback(null,outJson);       
+            }
+        })
+    } else if (userIdn == '') {
+        outJson["result"] = resultFinal;
+        outJson["status"] = "FAIL";
+        outJson["message"] = "Please Verify User Idn Can not be blank!";
+        callback(null, outJson);
+    }  
+}
