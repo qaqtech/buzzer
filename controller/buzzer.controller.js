@@ -520,7 +520,6 @@ exports.buzzerClick = function(req,res,tpoolconn,redirectParam,callback) {
     let source = redirectParam.source || req.body.source;
 
     let userIdn = req.body.userIdn || '';
-
     let outJson = {};
     let params=[];
     let fmt = {};
