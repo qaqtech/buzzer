@@ -5,7 +5,7 @@ const coreDB = require('qaq-core-db');
 const util = require('qaq-core-util');
 const cors = require('cors');
 
-const buzzer = require('./buzzer/buzzer.router');
+const buzzer = require('./router/buzzer.router');
 
 const app = express();
 const hostname = '0.0.0.0';
