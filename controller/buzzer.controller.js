@@ -527,7 +527,7 @@ exports.buzzerClick = function(req,res,tpoolconn,redirectParam,callback) {
 
     if(userIdn != ''){
         let insertBuzzerQ="insert into buzzer_log(user_idn,log_ts) \n" +
-                "values($1,current_timestamp)";
+                "values($1,current_timestamp) RETURNING  rank,to_char(log_ts + interval '5.5 hours','dd-MON-yyyy hh24:MI') log_ts  ";
             
         params.push(userIdn);
         coreDB.executeTransSql(tpoolconn,insertBuzzerQ,params,fmt,function(error,result){
@@ -540,6 +540,8 @@ exports.buzzerClick = function(req,res,tpoolconn,redirectParam,callback) {
                 var len = result.rowCount;                    
                 coreDB.doTransCommit(tpoolconn);
                 if(len > 0){
+                    resultFinal["rank"]=result.rows[0].rank;
+                    resultFinal["log_ts"] =result.rows[0].log_ts;
                     outJson["result"]=resultFinal;
                     outJson["status"]="SUCCESS";
                     outJson["message"]="Buzzer Log Inserted Successfully";
