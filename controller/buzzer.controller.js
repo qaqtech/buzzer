@@ -233,7 +233,7 @@ exports.getRoundDetailsWithUserList =async function(req,res,tpoolconn,redirectPa
             resultFinal["userList"] = [];  
 
 
-    let sql="select srl,round_nme,q_ctg,round_srl from buzzer_srl ";
+    let sql="select srl,round_nme,q_ctg,round_srl from buzzer_srl where end_ts is null order by q_ctg ";
 
     // console.log(insertTransactionQ);
     // console.log(params);
@@ -398,7 +398,7 @@ exports.setRoundActive = function(req,res,tpoolconn,redirectParam,callback) {
     let resultFinal = {};
 
     if(srl != ''){
-        let sql="update buzzer_srl set end_ts = current_timestamp where status = 1 and end_ts is null";
+        let sql="update buzzer_srl set status = 0,start_ts = null where status = 1 and end_ts is null";
 
         coreDB.executeTransSql(tpoolconn,sql,params,fmt,function(error,result){
             if(error){
@@ -407,7 +407,7 @@ exports.setRoundActive = function(req,res,tpoolconn,redirectParam,callback) {
                 outJson["message"]="Error In update previous active Round Method!"+error.message;
                 callback(null,outJson);
             }else{
-                let sql="update buzzer_srl set status = 1 where srl = $1 and status = 0 and end_ts is null";
+                let sql="update buzzer_srl set status = 1,start_ts=current_timestamp where srl = $1 and status = 0 and end_ts is null";
                 params=[];
                 params.push(srl);
                 coreDB.executeTransSql(tpoolconn,sql,params,fmt,function(error,result){
@@ -442,7 +442,7 @@ exports.setRoundActive = function(req,res,tpoolconn,redirectParam,callback) {
     }  
 } 
 
-exports.updateRoundPoints = function(req,res,tpoolconn,redirectParam,callback) { 
+exports.updateRoundPoints = async function(req,res,tpoolconn,redirectParam,callback) { 
     let coIdn = redirectParam.coIdn;
     let applIdn = redirectParam.applIdn;
     let source = redirectParam.source || req.body.source;
@@ -454,33 +454,30 @@ exports.updateRoundPoints = function(req,res,tpoolconn,redirectParam,callback) {
     let outJson = {};
     let params=[];
     let fmt = {};
-    let resultFinal = {};
+    let methodParam = {};
     let sql = "";
+    let resultFinal = {};
 
     if(srl != '' && (plusUserIdn != '' || minusUserIdn != '')){
-        if(plusUserIdn != ''){
-            sql="update buzzer_srl set plus_user_idn= $1 where srl = $2 "+
-                " and status=1 and end_ts is null";
-                params=[];
-                params.push(plusUserIdn);
-                params.push(srl);
-        }
-        if(minusUserIdn != ''){
-            sql="update buzzer_srl set minus_user_idn =  minus_user_idn || '{"+minusUserIdn+"}' where  "+
-                " srl=$1 and status=1 and end_ts is null ";
-                //"and NOT ($3 = ANY(minus_user_idn)) ";
-                params=[]; 
-                params.push(srl);
-        }
-        console.log(sql);
-        console.log(params);
+        methodParam["srl"] = srl;
+        methodParam["plusUserIdn"] = plusUserIdn;
+        let plusPoints = await execUpdatePoints(methodParam,tpoolconn);
+
+        methodParam = {};
+        methodParam["srl"] = srl;
+        methodParam["minusUserIdn"] = minusUserIdn;
+        let minusPoints = await execUpdatePoints(methodParam,tpoolconn);
+
+        let sql="update buzzer_srl set status = 2,end_ts=current_timestamp where srl = $1 and status = 1 and end_ts is null";
+        params=[];
+        params.push(srl);
         coreDB.executeTransSql(tpoolconn,sql,params,fmt,function(error,result){
             if(error){
                 coreDB.doTransRollBack(tpoolconn);
                 outJson["status"]="FAIL";
-                outJson["message"]="Error In update round points Method!"+error.message;
+                outJson["message"]="Error In update buzzer_srl Method!"+error.message;
                 callback(null,outJson);
-            }else{                
+            }else{
                 var len = result.rowCount;                    
                 coreDB.doTransCommit(tpoolconn);
                 if(len > 0){
@@ -493,18 +490,13 @@ exports.updateRoundPoints = function(req,res,tpoolconn,redirectParam,callback) {
                     outJson["status"]="FAIL";
                     outJson["message"]="Round Points Save Failed";
                 }
-                callback(null,outJson);                   
+                callback(null,outJson);
             }
         })
-    } else if (roundName == '') {
+    } else if (srl == '') {
         outJson["result"] = resultFinal;
         outJson["status"] = "FAIL";
-        outJson["message"] = "Please Verify roundName Can not be blank!";
-        callback(null, outJson);
-    } else if (roundSrl == '') {
-        outJson["result"] = resultFinal;
-        outJson["status"] = "FAIL";
-        outJson["message"] = "Please Verify roundSrl Can not be blank!";
+        outJson["message"] = "Please Verify srl Can not be blank!";
         callback(null, outJson);
     } else if (plusUserIdn == '' || minusUserIdn == '') {
         outJson["result"] = resultFinal;
@@ -513,6 +505,66 @@ exports.updateRoundPoints = function(req,res,tpoolconn,redirectParam,callback) {
         callback(null, outJson);
     }  
 } 
+
+function execUpdatePoints(methodParam,tpoolconn){
+    return new Promise(function(resolve,reject) {
+        updatePoints(methodParam,tpoolconn, function (error, result) {
+        if(error){  
+          reject(error);
+         }
+        resolve(result);
+     });
+    });
+}
+
+function updatePoints(methodParam,tpoolconn,callback) {    
+    let fmt = {};
+    let params=[];
+    let outJson = {};
+    let plusUserIdn = methodParam.plusUserIdn || '';
+    let minusUserIdn = methodParam.minusUserIdn || '';
+    let srl = methodParam.srl || '';
+
+    var sql = "";
+    if(plusUserIdn != ''){
+        sql="update buzzer_srl set plus_user_idn= $1 where srl = $2 "+
+            " and status=1 and end_ts is null";
+            params=[];
+            params.push(plusUserIdn);
+            params.push(srl);
+    }
+    if(minusUserIdn != ''){
+        sql="update buzzer_srl set minus_user_idn =  minus_user_idn || '{"+minusUserIdn+"}' where  "+
+            " srl=$1 and status=1 and end_ts is null ";
+            //"and NOT ($3 = ANY(minus_user_idn)) ";
+            params=[]; 
+            params.push(srl);
+    }
+    console.log(sql);
+    console.log(params);
+    coreDB.executeTransSql(tpoolconn,sql,params,fmt,function(error,result){
+        if(error){
+            coreDB.doTransRollBack(tpoolconn);
+            outJson["status"]="FAIL";
+            outJson["message"]="Error In update round points Method!"+error.message;
+            callback(null,outJson);
+        }else{                
+            var len = result.rowCount;                    
+            coreDB.doTransCommit(tpoolconn);
+            if(len > 0){
+                outJson["result"]=resultFinal;
+                outJson["status"]="SUCCESS";
+                outJson["message"]="Round Points Save Successfully";
+            }else{
+                coreDB.doTransRollBack(tpoolconn);
+                outJson["result"]=resultFinal;
+                outJson["status"]="FAIL";
+                outJson["message"]="Round Points Save Failed";
+            }
+            callback(null,outJson);                   
+        }
+    })
+}
 
 exports.buzzerClick = function(req,res,tpoolconn,redirectParam,callback) { 
     let coIdn = redirectParam.coIdn;
