@@ -250,7 +250,7 @@ exports.getRoundDetailsWithUserList =async function(req,res,tpoolconn,redirectPa
                 var map = {};
                 for(var i=0;i<len;i++){
                     var resultRows = result.rows[i];
-                    var rdNme = resultRows["q_ctg"];
+                    var rdNme = resultRows["round_nme"];
 
                     if(prvRdNme == '')
                         prvRdNme = rdNme;
@@ -264,7 +264,7 @@ exports.getRoundDetailsWithUserList =async function(req,res,tpoolconn,redirectPa
                     var rmap = {};
                     rmap["srl"] = resultRows["srl"];
                     rmap["roundSrl"] = resultRows["round_srl"]; 
-                    rmap["round_nme"] = resultRows["round_nme"];
+                    //rmap["round_nme"] = resultRows["round_nme"];
                     list.push(rmap);
                 }
                 map[prvRdNme] = list;
