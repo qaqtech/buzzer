@@ -334,55 +334,66 @@ function getUserList(methodParam,tpoolconn,callback) {
     })
 }
 
-exports.getRoundDetails = function(req,res,tpoolconn,redirectParam,callback) { 
+exports.getLogDetails = function(req,res,tpoolconn,redirectParam,callback) { 
     let coIdn = redirectParam.coIdn;
     let applIdn = redirectParam.applIdn;
     let source = redirectParam.source || req.body.source;
+
+    let srl = req.body.srl || '';
 
     let outJson = {};
     let params=[];
     let fmt = {};
     let resultFinal = {};
 
-    let sql="select srl,round_nme,round_srl,question,answer,q_typ,q_ctg,plus_pts,minus_pts from buzzer_srl where end_ts is null ";
-
-    // console.log(insertTransactionQ);
-    // console.log(params);
-    coreDB.executeTransSql(tpoolconn,sql,params,fmt,function(error,result){
-        if(error){
-            outJson["status"]="FAIL";
-            outJson["message"]="Error In get Round Details Method!"+error.message;
-            callback(null,outJson);
-        }else{
-            var len = result.rows.length;
-            if(len>0){
-                var list = [];
-                for(var i=0;i<len;i++){
-                    var map = {};
-                    var resultRows = result.rows[i];
-                    map["srl"] = resultRows["srl"] || '';
-                    map["roundName"] = resultRows["round_nme"] || '';
-                    map["roundSrl"] =  resultRows["round_srl"] || '';
-                    map["question"] = resultRows["question"] || '';
-                    map["answer"] =  resultRows["answer"] || '';
-                    map["qType"] = resultRows["q_typ"] || '';
-                    map["qCtg"] =  resultRows["q_ctg"] || '';
-                    map["plusPoints"] = resultRows["plus_pts"] || '';
-                    map["minusPoints"] =  resultRows["minus_pts"] || '';
-                    list.push(map);
-                }
-
-                resultFinal["roundDetails"]=list;
-                outJson["result"]=resultFinal;
-                outJson["status"]="SUCCESS";
-                outJson["message"]="SUCCESS";
-            }else{
+    if(srl != ''){
+        let sql="select b.log_idn,b.srl,a.nme ,to_char(b.log_ts + interval '5.5 hours','dd-MON-yyyy hh24:MI:SS:US') log_ts, "+
+            "b.rank ,b.plus_pts,b.minus_pts from buzzer_user a,buzzer_log b where a.user_idn=b.user_idn  "+
+            "and b.srl=$1 order by b.srl desc ";
+        params.push(srl);
+        // console.log(insertTransactionQ);
+        // console.log(params);
+        coreDB.executeTransSql(tpoolconn,sql,params,fmt,function(error,result){
+            if(error){
                 outJson["status"]="FAIL";
-                outJson["message"]="Sorry no result found";
+                outJson["message"]="Error In get Log Details Method!"+error.message;
+                callback(null,outJson);
+            }else{
+                var len = result.rows.length;
+                if(len>0){
+                    var list = [];
+                    for(var i=0;i<len;i++){
+                        var map = {};
+                        var resultRows = result.rows[i];
+                        map["name"] = resultRows["nme"] || '';
+                        map["log_idn"] = resultRows["log_idn"] || '';
+                        map["srl"] = resultRows["srl"] || '';
+                        map["log_ts"] = resultRows["log_ts"] || '';
+                        map["rank"] =  resultRows["rank"] || '';
+                        map["plus_pts"] = resultRows["plus_pts"] || '';
+                        map["minus_pts"] =  resultRows["minus_pts"] || '';
+                     
+                        list.push(map);
+                    }
+    
+                    resultFinal["logDetails"]=list;
+                    outJson["result"]=resultFinal;
+                    outJson["status"]="SUCCESS";
+                    outJson["message"]="SUCCESS";
+                    callback(null,outJson);
+                }else{
+                    outJson["status"]="FAIL";
+                    outJson["message"]="Sorry no result found";
+                    callback(null,outJson);
+                }
             }
-            callback(null,outJson);
-        }
-    })
+        })
+    } else if (srl == '') {
+        outJson["result"] = resultFinal;
+        outJson["status"] = "FAIL";
+        outJson["message"] = "Please Verify srl Can not be blank!";
+        callback(null, outJson);
+    } 
 } 
 
 exports.setRoundActive = function(req,res,tpoolconn,redirectParam,callback) { 
@@ -420,16 +431,53 @@ exports.setRoundActive = function(req,res,tpoolconn,redirectParam,callback) {
                         var len = result.rowCount;                    
                         coreDB.doTransCommit(tpoolconn);
                         if(len > 0){
-                            outJson["result"]=resultFinal;
-                            outJson["status"]="SUCCESS";
-                            outJson["message"]="Round Active Successfully";
+                            sql="select srl,round_nme,round_srl,question,answer,q_typ,q_ctg,url,answer_url,options from buzzer_srl where srl=$1 and end_ts is null ";
+                            params=[];
+                            params.push(srl);
+                            // console.log(insertTransactionQ);
+                            // console.log(params);
+                            coreDB.executeTransSql(tpoolconn,sql,params,fmt,function(error,result){
+                                if(error){
+                                    outJson["status"]="FAIL";
+                                    outJson["message"]="Error In get Round Details Method!"+error.message;
+                                    callback(null,outJson);
+                                }else{
+                                    var leng = result.rows.length;
+                                    if(leng>0){
+                                        var map = {};
+                                        for(var i=0;i<leng;i++){    
+                                            var resultRows = result.rows[i];
+                                            map["srl"] = resultRows["srl"] || '';
+                                            map["roundName"] = resultRows["round_nme"] || '';
+                                            map["roundSrl"] =  resultRows["round_srl"] || '';
+                                            map["question"] = resultRows["question"] || '';
+                                            map["answer"] =  resultRows["answer"] || '';
+                                            map["qType"] = resultRows["q_typ"] || '';
+                                            map["qCtg"] =  resultRows["q_ctg"] || '';
+                                            map["url"] = resultRows["url"] || '';
+                                            map["answer_url"] =  resultRows["answer_url"] || '';
+                                            map["options"] =  resultRows["options"] || [];
+                                        }
+                        
+                                        resultFinal["roundDetails"]=map;
+                                        outJson["result"]=resultFinal;
+                                        outJson["status"]="SUCCESS";
+                                        outJson["message"]="Round Active Successfully";
+                                        callback(null,outJson);
+                                    }else{
+                                        outJson["status"]="FAIL";
+                                        outJson["message"]="Sorry no result found";
+                                        callback(null,outJson);
+                                    } 
+                                }
+                            })
                         }else{
                             coreDB.doTransRollBack(tpoolconn);
                             outJson["result"]=resultFinal;
                             outJson["status"]="FAIL";
                             outJson["message"]="Round Active Failed";
-                        }
-                        callback(null,outJson);
+                            callback(null,outJson);
+                        }    
                     }
                 })
             }
@@ -635,6 +683,67 @@ exports.buzzerClick = function(req,res,tpoolconn,redirectParam,callback) {
         outJson["result"] = resultFinal;
         outJson["status"] = "FAIL";
         outJson["message"] = "Please Verify User Idn Can not be blank!";
+        callback(null, outJson);
+    }  
+}
+
+exports.updateLogPoints = function(req,res,tpoolconn,redirectParam,callback) { 
+    let coIdn = redirectParam.coIdn;
+    let applIdn = redirectParam.applIdn;
+    let source = redirectParam.source || req.body.source;
+
+    let logIdn = req.body.logIdn || '';
+    let plusPts = req.body.plusPts || '';
+    let minusPts = req.body.minusPts || '';
+    let outJson = {};
+    let params=[];
+    let fmt = {};
+    let resultFinal = {};
+
+    if(logIdn != '' && plusPts != '' && minusPts !=''){
+        let buzzerQ="update buzzer_log  set plus_pts = $1,minus_pts = $2 "+
+         " where log_idn = $3";
+        
+        params.push(plusPts);
+        params.push(minusPts);
+        params.push(logIdn);
+        coreDB.executeTransSql(tpoolconn,buzzerQ,params,fmt,function(error,result){
+            if(error){
+                coreDB.doTransRollBack(tpoolconn);
+                outJson["status"]="FAIL";
+                outJson["message"]="Error In buzzer_log query!"+error.message;
+                callback(null,outJson);
+            }else{    
+                var len = result.rowCount;                    
+                coreDB.doTransCommit(tpoolconn);
+                if(len > 0){   
+                    outJson["result"]=resultFinal;
+                    outJson["status"]="SUCCESS";
+                    outJson["message"]="Buzzer Log Updated Successfully";
+                    callback(null,outJson);  
+                } else {
+                    coreDB.doTransRollBack(tpoolconn);
+                    outJson["result"]=resultFinal;
+                    outJson["status"]="FAIL";
+                    outJson["message"]="Buzzer Log Updated Failed";
+                    callback(null,outJson);                     
+                }     
+            }
+        })
+    } else if (logIdn == '') {
+        outJson["result"] = resultFinal;
+        outJson["status"] = "FAIL";
+        outJson["message"] = "Please Verify Log Idn Can not be blank!";
+        callback(null, outJson);
+    } else if (plusPts == '') {
+        outJson["result"] = resultFinal;
+        outJson["status"] = "FAIL";
+        outJson["message"] = "Please Verify Plus Points Can not be blank!";
+        callback(null, outJson);
+    } else if (minusPts == '') {
+        outJson["result"] = resultFinal;
+        outJson["status"] = "FAIL";
+        outJson["message"] = "Please Verify Minus Points Can not be blank!";
         callback(null, outJson);
     }  
 }
