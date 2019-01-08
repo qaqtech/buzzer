@@ -233,7 +233,7 @@ exports.getRoundDetailsWithUserList =async function(req,res,tpoolconn,redirectPa
             resultFinal["userList"] = [];  
 
 
-    let sql="select srl,round_nme,q_ctg,round_srl from buzzer_srl where end_ts is null order by q_ctg ";
+    let sql="select srl,round_nme,q_ctg,round_srl from buzzer_srl where end_ts is null order by round_nme ";
 
     // console.log(insertTransactionQ);
     // console.log(params);
