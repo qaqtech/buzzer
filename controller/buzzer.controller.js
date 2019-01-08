@@ -747,3 +747,54 @@ exports.updateLogPoints = function(req,res,tpoolconn,redirectParam,callback) {
         callback(null, outJson);
     }  
 }
+
+exports.getRoundDetails = function(req,res,tpoolconn,redirectParam,callback) { 
+    let coIdn = redirectParam.coIdn;
+    let applIdn = redirectParam.applIdn;
+    let source = redirectParam.source || req.body.source;
+
+    let outJson = {};
+    let params=[];
+    let fmt = {};
+    let resultFinal = {};
+
+    let sql="select srl,round_nme,round_srl,question,answer,q_typ,q_ctg,plus_pts,minus_pts from buzzer_srl where end_ts is null ";
+
+    // console.log(insertTransactionQ);
+    // console.log(params);
+    coreDB.executeTransSql(tpoolconn,sql,params,fmt,function(error,result){
+        if(error){
+            outJson["status"]="FAIL";
+            outJson["message"]="Error In get Round Details Method!"+error.message;
+            callback(null,outJson);
+        }else{
+            var len = result.rows.length;
+            if(len>0){
+                var list = [];
+                for(var i=0;i<len;i++){
+                    var map = {};
+                    var resultRows = result.rows[i];
+                    map["srl"] = resultRows["srl"] || '';
+                    map["roundName"] = resultRows["round_nme"] || '';
+                    map["roundSrl"] =  resultRows["round_srl"] || '';
+                    map["question"] = resultRows["question"] || '';
+                    map["answer"] =  resultRows["answer"] || '';
+                    map["qType"] = resultRows["q_typ"] || '';
+                    map["qCtg"] =  resultRows["q_ctg"] || '';
+                    map["plusPoints"] = resultRows["plus_pts"] || '';
+                    map["minusPoints"] =  resultRows["minus_pts"] || '';
+                    list.push(map);
+                }
+
+                resultFinal["roundDetails"]=list;
+                outJson["result"]=resultFinal;
+                outJson["status"]="SUCCESS";
+                outJson["message"]="SUCCESS";
+            }else{
+                outJson["status"]="FAIL";
+                outJson["message"]="Sorry no result found";
+            }
+            callback(null,outJson);
+        }
+    })
+} 
