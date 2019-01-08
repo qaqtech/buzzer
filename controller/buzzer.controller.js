@@ -700,12 +700,16 @@ exports.updateLogPoints = function(req,res,tpoolconn,redirectParam,callback) {
     let fmt = {};
     let resultFinal = {};
 
-    if(logIdn != '' && plusPts != '' && minusPts !=''){
-        let buzzerQ="update buzzer_log  set plus_pts = $1,minus_pts = $2 "+
-         " where log_idn = $3";
+    if(logIdn != '' && (plusPts != '' || minusPts !='')){
+        let buzzerQ="update buzzer_log  set  ";
+        if(plusPts != ''){
+            buzzerQ+=" plus_pts =  "+plusPts;
+        }
+        if(minusPts != ''){
+            buzzerQ+=" minus_pts =  "+minusPts;
+        }
+        buzzerQ+=" where log_idn = $1";
         
-        params.push(plusPts);
-        params.push(minusPts);
         params.push(logIdn);
         coreDB.executeTransSql(tpoolconn,buzzerQ,params,fmt,function(error,result){
             if(error){
@@ -735,17 +739,12 @@ exports.updateLogPoints = function(req,res,tpoolconn,redirectParam,callback) {
         outJson["status"] = "FAIL";
         outJson["message"] = "Please Verify Log Idn Can not be blank!";
         callback(null, outJson);
-    } else if (plusPts == '') {
+    } else if (plusPts == '' || minusPts == '') {
         outJson["result"] = resultFinal;
         outJson["status"] = "FAIL";
-        outJson["message"] = "Please Verify Plus Points Can not be blank!";
+        outJson["message"] = "Please Verify Plus/Minus Points Can not be blank!";
         callback(null, outJson);
-    } else if (minusPts == '') {
-        outJson["result"] = resultFinal;
-        outJson["status"] = "FAIL";
-        outJson["message"] = "Please Verify Minus Points Can not be blank!";
-        callback(null, outJson);
-    }  
+    } 
 }
 
 exports.getRoundDetails = function(req,res,tpoolconn,redirectParam,callback) { 
