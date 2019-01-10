@@ -233,7 +233,7 @@ exports.getRoundDetailsWithUserList =async function(req,res,tpoolconn,redirectPa
             resultFinal["userList"] = [];  
 
 
-    let sql="select srl,round_nme,q_ctg,round_srl from buzzer_srl where end_ts is null order by round_nme ";
+    let sql="select srl,round_nme,q_ctg,round_srl from buzzer_srl where end_ts is null order by round_nme,round_srl ";
 
     // console.log(insertTransactionQ);
     // console.log(params);
@@ -757,7 +757,7 @@ exports.getRoundDetails = function(req,res,tpoolconn,redirectParam,callback) {
     let fmt = {};
     let resultFinal = {};
 
-    let sql="select srl,round_nme,round_srl,question,answer,q_typ,q_ctg,plus_pts,minus_pts from buzzer_srl where end_ts is null ";
+    let sql="select srl,round_nme,round_srl,question,answer,q_typ,q_ctg,plus_pts,minus_pts from buzzer_srl where end_ts is null  order by round_nme,round_srl ";
 
     // console.log(insertTransactionQ);
     // console.log(params);
@@ -797,3 +797,102 @@ exports.getRoundDetails = function(req,res,tpoolconn,redirectParam,callback) {
         }
     })
 } 
+
+exports.getUserRoundSummary = function(req,res,tpoolconn,redirectParam,callback) { 
+    let coIdn = redirectParam.coIdn;
+    let applIdn = redirectParam.applIdn;
+    let source = redirectParam.source || req.body.source;
+
+    let outJson = {};
+    let params=[];
+    let fmt = {};
+    let resultFinal = {};
+
+    let sql=" select initcap(u.nme) nme, s.round_nme, sum(l.plus_pts) - sum(l.minus_pts) pts "+
+        "from buzzer_log l, buzzer_srl s, buzzer_user u "+
+        "where l.srl = s.srl and l.user_idn = u.user_idn "+
+        "group by u.nme, s.round_nme "+
+        "order by 1,2 ";
+
+    // console.log(sql);
+    // console.log(params);
+    coreDB.executeTransSql(tpoolconn,sql,params,fmt,function(error,result){
+        if(error){
+            outJson["status"]="FAIL";
+            outJson["message"]="Error In getUserRoundSummary Details Method!"+error.message;
+            callback(null,outJson);
+        }else{
+            var len = result.rows.length;
+            if(len>0){
+                var list = [];
+                for(var i=0;i<len;i++){
+                    var map = {};
+                    var resultRows = result.rows[i];
+                    map["userName"] = resultRows["nme"] || '';
+                    map["roundName"] = resultRows["round_nme"] || '';
+                    map["points"] =  resultRows["pts"] || '';
+                    list.push(map);
+                }
+
+                resultFinal["roundDetails"]=list;
+                outJson["result"]=resultFinal;
+                outJson["status"]="SUCCESS";
+                outJson["message"]="SUCCESS";
+            }else{
+                outJson["status"]="FAIL";
+                outJson["message"]="Sorry no result found";
+            }
+            callback(null,outJson);
+        }
+    })
+} 
+
+exports.getGrandSummary = function(req,res,tpoolconn,redirectParam,callback) { 
+    let coIdn = redirectParam.coIdn;
+    let applIdn = redirectParam.applIdn;
+    let source = redirectParam.source || req.body.source;
+
+    let outJson = {};
+    let params=[];
+    let fmt = {};
+    let resultFinal = {};
+
+    let sql="select initcap(u.nme) nme, case when s.round_nme = 'Finals' then 'Finals' else 'Qualifiers' end round_nme "+
+        ", sum(l.plus_pts) - sum(l.minus_pts) pts "+
+        "from buzzer_log l, buzzer_srl s, buzzer_user u "+
+        "where l.srl = s.srl and l.user_idn = u.user_idn "+
+        "group by u.nme, case when s.round_nme = 'Finals' then 'Finals' else 'Qualifiers' end "+
+        "order by 1,2 ";
+
+    // console.log(sql);
+    // console.log(params);
+    coreDB.executeTransSql(tpoolconn,sql,params,fmt,function(error,result){
+        if(error){
+            outJson["status"]="FAIL";
+            outJson["message"]="Error In getUserRoundSummary Details Method!"+error.message;
+            callback(null,outJson);
+        }else{
+            var len = result.rows.length;
+            if(len>0){
+                var list = [];
+                for(var i=0;i<len;i++){
+                    var map = {};
+                    var resultRows = result.rows[i];
+                    map["userName"] = resultRows["nme"] || '';
+                    map["roundName"] = resultRows["round_nme"] || '';
+                    map["points"] =  resultRows["pts"] || '';
+                    list.push(map);
+                }
+
+                resultFinal["roundDetails"]=list;
+                outJson["result"]=resultFinal;
+                outJson["status"]="SUCCESS";
+                outJson["message"]="SUCCESS";
+            }else{
+                outJson["status"]="FAIL";
+                outJson["message"]="Sorry no result found";
+            }
+            callback(null,outJson);
+        }
+    })
+}
