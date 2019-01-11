@@ -825,33 +825,60 @@ exports.getUserRoundSummary = function(req,res,tpoolconn,redirectParam,callback)
             var len = result.rows.length;
             if(len>0){
                 var list = [];
-                for(var i=0;i<len;i++){
-                    var map = {};
+                var prvName = '';
+                let summMap = {};
+                for(var i=0;i<len;i++){                   
                     var resultRows = result.rows[i];
-                    map["userName"] = resultRows["nme"] || '';
+                    var userName = resultRows["nme"] || '';
+
+                    if(prvName == '')
+                    prvName = userName;
+
+                    if(prvName != userName){
+                        summMap[prvName] = list;
+                        prvName = userName;
+                        list = [];
+                    }
+                    var map = {};
                     map["roundName"] = resultRows["round_nme"] || '';
                     map["points"] =  resultRows["pts"] || '';
                     list.push(map);
                 }
+                summMap[prvName] = list;
 
-                resultFinal["roundDetails"]=list;
-                outJson["result"]=resultFinal;
-                outJson["status"]="SUCCESS";
-                outJson["message"]="SUCCESS";
+                resultFinal["userWiseSummary"]=summMap;
+
+                let methodParam = {};
+                getGrandSummary(tpoolconn,methodParam,function(error,summaryDetails){
+                    if(error){
+                        console.log(error);
+                        outJson["result"]='';
+                        outJson["status"]="FAIL";
+                        outJson["message"]="Fail To getGrandSummary!";
+                        callback(null,outJson);
+                    }else{
+                        let summaryResult = {};
+                        if(summaryDetails.status == 'SUCCESS')
+                            summaryResult = summaryDetails.result || {};
+
+                        resultFinal["grandSummary"] = summaryResult;
+
+                        outJson["result"]=resultFinal;
+                        outJson["status"]="SUCCESS";
+                        outJson["message"]="SUCCESS"; 
+                        callback(null,outJson); 
+                    }
+                }) 
             }else{
                 outJson["status"]="FAIL";
                 outJson["message"]="Sorry no result found";
-            }
-            callback(null,outJson);
+                callback(null,outJson);
+            }   
         }
     })
 } 
 
-exports.getGrandSummary = function(req,res,tpoolconn,redirectParam,callback) { 
-    let coIdn = redirectParam.coIdn;
-    let applIdn = redirectParam.applIdn;
-    let source = redirectParam.source || req.body.source;
-
+function getGrandSummary(tpoolconn,redirectParam,callback) { 
     let outJson = {};
     let params=[];
     let fmt = {};
@@ -875,24 +902,36 @@ exports.getGrandSummary = function(req,res,tpoolconn,redirectParam,callback) {
             var len = result.rows.length;
             if(len>0){
                 var list = [];
-                for(var i=0;i<len;i++){
-                    var map = {};
+                var prvName = '';
+                let summMap = {};
+                for(var i=0;i<len;i++){                   
                     var resultRows = result.rows[i];
-                    map["userName"] = resultRows["nme"] || '';
+                    var userName = resultRows["nme"] || '';
+
+                    if(prvName == '')
+                    prvName = userName;
+
+                    if(prvName != userName){
+                        summMap[prvName] = list;
+                        prvName = userName;
+                        list = [];
+                    }
+                    var map = {};
                     map["roundName"] = resultRows["round_nme"] || '';
                     map["points"] =  resultRows["pts"] || '';
                     list.push(map);
                 }
+                summMap[prvName] = list;
 
-                resultFinal["roundDetails"]=list;
-                outJson["result"]=resultFinal;
+                outJson["result"]=summMap;
                 outJson["status"]="SUCCESS";
                 outJson["message"]="SUCCESS";
+                callback(null,outJson);
             }else{
                 outJson["status"]="FAIL";
                 outJson["message"]="Sorry no result found";
-            }
-            callback(null,outJson);
+                callback(null,outJson);
+            }    
         }
     })
 }
