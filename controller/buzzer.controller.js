@@ -630,54 +630,51 @@ exports.buzzerClick = function(req,res,tpoolconn,redirectParam,callback) {
                 "values($1,current_timestamp) RETURNING srl  ";
             
         params.push(userIdn);
-        coreDB.executeTransSql(tpoolconn,insertBuzzerQ,params,fmt,function(error,result){
-            if(error){
-                coreDB.doTransRollBack(tpoolconn);
-                outJson["status"]="FAIL";
-                outJson["message"]="Error In buzzer_log query!"+error.message;
-                callback(null,outJson);
-            }else{    
-                var len = result.rowCount;                    
-                coreDB.doTransCommit(tpoolconn);
-                if(len > 0){
-                    var srl=result.rows[0].srl;
-                    console.log(srl)
-                    let sql="select min(rank) rnk,min(to_char(log_ts + interval '5.5 hours','dd-MON-yyyy hh24:MI:SS:US')) log_ts "+
-                        " from buzzer_log where user_idn=$1 and srl=$2 ";
-            
-                    params=[];
-                    params.push(userIdn);
-                    params.push(srl);
-                    coreDB.executeTransSql(tpoolconn,sql,params,fmt,function(error,result){
-                        if(error){
-                            coreDB.doTransRollBack(tpoolconn);
-                            outJson["status"]="FAIL";
-                            outJson["message"]="Error In buzzer_log query!"+error.message;
-                            callback(null,outJson);
-                        }else{    
-                            var len = result.rows.length;                    
-                            if(len > 0){                               
-                                resultFinal["rank"]=result.rows[0].rnk;
-                                resultFinal["log_ts"] =result.rows[0].log_ts;
-                                outJson["result"]=resultFinal;
-                                outJson["status"]="SUCCESS";
-                                outJson["message"]="Buzzer Log Inserted Successfully";
-                            }else{
-                                outJson["result"]=resultFinal;
-                                outJson["status"]="FAIL";
-                                outJson["message"]="Buzzer Log Inserted Failed";
-                            }
-                            callback(null,outJson); 
-                        }
-                    }) 
-                } else {
-                    coreDB.doTransRollBack(tpoolconn);
-                    outJson["result"]=resultFinal;
-                    outJson["status"]="FAIL";
-                    outJson["message"]="Buzzer Log Inserted Failed";
-                    callback(null,outJson);                     
-                }     
+        coreDB.executeTransSql(tpoolconn,insertBuzzerQ,params,fmt,function(error,result){    
+        
+        
+        params=[];
+        params.push(userIdn);
+        var srl= '';
+        var len = 0;
+        
+        if(!error){
+            len = result.rowCount; 
+            coreDB.doTransCommit(tpoolconn);
+            srl = result.rows[0].srl;
+            console.log(srl)
+        }
+        
+            let sql="select min(rank) rnk,min(to_char(log_ts + interval '5.5 hours','dd-MON-yyyy hh24:MI:SS:US')) log_ts "+
+                " from buzzer_log where user_idn=$1  ";
+
+            if(len  > 0){
+                sql += " and srl=$2 ";
+                params.push(srl);
             }
+            coreDB.executeTransSql(tpoolconn,sql,params,fmt,function(error,result){
+                if(error){
+                    coreDB.doTransRollBack(tpoolconn);
+                    outJson["status"]="FAIL";
+                    outJson["message"]="Error In buzzer_log query!"+error.message;
+                    callback(null,outJson);
+                }else{    
+                    var len = result.rows.length;                    
+                    if(len > 0){                               
+                        resultFinal["rank"]=result.rows[0].rnk || '';
+                        resultFinal["log_ts"] =result.rows[0].log_ts || '';
+                        outJson["result"]=resultFinal;
+                        outJson["status"]="SUCCESS";
+                        outJson["message"]="Buzzer Log Inserted Successfully";
+                    }else{
+                        outJson["result"]=resultFinal;
+                        outJson["status"]="FAIL";
+                        outJson["message"]="Buzzer Log Inserted Failed";
+                    }
+                    callback(null,outJson); 
+                }
+            }) 
+                  
         })
     } else if (userIdn == '') {
         outJson["result"] = resultFinal;
