@@ -795,7 +795,7 @@ exports.getRoundDetails = function(req,res,tpoolconn,redirectParam,callback) {
     })
 } 
 
-exports.getUserRoundSummary = function(req,res,tpoolconn,redirectParam,callback) { 
+exports.getUserRoundSummary =async function(req,res,tpoolconn,redirectParam,callback) { 
     let coIdn = redirectParam.coIdn;
     let applIdn = redirectParam.applIdn;
     let source = redirectParam.source || req.body.source;
@@ -804,6 +804,21 @@ exports.getUserRoundSummary = function(req,res,tpoolconn,redirectParam,callback)
     let params=[];
     let fmt = {};
     let resultFinal = {};
+	let methodParam = {};
+    var roundNameList = [];
+    var userList = [];
+
+    let roundListResult = await execGetDistinctRound(methodParam,tpoolconn);
+    if(roundListResult.status == 'SUCCESS')
+        roundNameList = roundListResult.result;
+
+    resultFinal["roundList"]=roundNameList;
+
+    let userListResult = await execGetDistinctUser(methodParam,tpoolconn);
+    if(userListResult.status == 'SUCCESS')
+        userList = userListResult.result;
+
+    resultFinal["userList"]=userList;
 
     let sql=" select initcap(u.nme) nme, s.round_nme, sum(l.plus_pts) - sum(l.minus_pts) pts "+
         "from buzzer_log l, buzzer_srl s, buzzer_user u "+
@@ -821,29 +836,17 @@ exports.getUserRoundSummary = function(req,res,tpoolconn,redirectParam,callback)
         }else{
             var len = result.rows.length;
             if(len>0){
-                var list = [];
-                var prvName = '';
-                let summMap = {};
+                var map = {};
                 for(var i=0;i<len;i++){                   
                     var resultRows = result.rows[i];
                     var userName = resultRows["nme"] || '';
-
-                    if(prvName == '')
-                    prvName = userName;
-
-                    if(prvName != userName){
-                        summMap[prvName] = list;
-                        prvName = userName;
-                        list = [];
-                    }
-                    var map = {};
-                    map["roundName"] = resultRows["round_nme"] || '';
-                    map["points"] =  resultRows["pts"] || '';
-                    list.push(map);
+                    var roundName = resultRows["round_nme"] || '';
+                    var points = resultRows["pts"] || '';
+                    
+                    map[userName+"_"+roundName] = points;   
                 }
-                summMap[prvName] = list;
 
-                resultFinal["userWiseSummary"]=summMap;
+                resultFinal["userWiseSummary"]=map;
 
                 let methodParam = {};
                 getGrandSummary(tpoolconn,methodParam,function(error,summaryDetails){
@@ -898,27 +901,15 @@ function getGrandSummary(tpoolconn,redirectParam,callback) {
         }else{
             var len = result.rows.length;
             if(len>0){
-                var list = [];
-                var prvName = '';
                 let summMap = {};
                 for(var i=0;i<len;i++){                   
                     var resultRows = result.rows[i];
                     var userName = resultRows["nme"] || '';
-
-                    if(prvName == '')
-                    prvName = userName;
-
-                    if(prvName != userName){
-                        summMap[prvName] = list;
-                        prvName = userName;
-                        list = [];
-                    }
-                    var map = {};
-                    map["roundName"] = resultRows["round_nme"] || '';
-                    map["points"] =  resultRows["pts"] || '';
-                    list.push(map);
+                    var roundName = resultRows["round_nme"] || '';
+                    var points = resultRows["pts"] || '';
+                    
+                    summMap[userName+"_"+roundName] = points;
                 }
-                summMap[prvName] = list;
 
                 outJson["result"]=summMap;
                 outJson["status"]="SUCCESS";
@@ -929,6 +920,102 @@ function getGrandSummary(tpoolconn,redirectParam,callback) {
                 outJson["message"]="Sorry no result found";
                 callback(null,outJson);
             }    
+        }
+    })
+}
+
+function execGetDistinctRound(methodParam,tpoolconn){
+    return new Promise(function(resolve,reject) {
+        getDistinctRound(methodParam,tpoolconn, function (error, result) {
+        if(error){  
+          reject(error);
+         }
+        resolve(result);
+     });
+    });
+}
+
+function getDistinctRound(methodParam,tpoolconn,callback) {    
+    let fmt = {};
+    let params=[];
+    let outJson = {};
+    let resultFinal = [];
+
+    var sql="select distinct(round_nme) rnd from buzzer_srl order by round_nme ";
+    
+    //console.log(sql);
+    //console.log(params);
+    coreDB.executeTransSql(tpoolconn,sql,params,fmt,function(error,result){
+        if(error){
+            coreDB.doTransRollBack(tpoolconn);
+            outJson["status"]="FAIL";
+            outJson["message"]="Error In Get Round Method!"+error.message;
+            callback(null,outJson);
+        }else{                
+            var len = result.rows.length;                    
+            if(len > 0){
+                for(var i=0;i<len;i++){
+                    let rnd = result.rows[i].rnd;
+                    resultFinal.push(rnd);
+                }
+                outJson["result"]=resultFinal;
+                outJson["status"]="SUCCESS";
+                outJson["message"]="SUCCESS";
+                callback(null,outJson);
+            }else{
+                outJson["result"]=resultFinal;
+                outJson["status"]="FAIL";
+                outJson["message"]="Sorry no result found";
+                callback(null,outJson);                   
+            }
+        }
+    })
+}
+
+function execGetDistinctUser(methodParam,tpoolconn){
+    return new Promise(function(resolve,reject) {
+        getDistinctUser(methodParam,tpoolconn, function (error, result) {
+        if(error){  
+          reject(error);
+         }
+        resolve(result);
+     });
+    });
+}
+
+function getDistinctUser(methodParam,tpoolconn,callback) {    
+    let fmt = {};
+    let params=[];
+    let outJson = {};
+    let resultFinal = [];
+
+    var sql="select initcap(nme) nme from buzzer_user order by user_idn ";
+    
+    //console.log(sql);
+    //console.log(params);
+    coreDB.executeTransSql(tpoolconn,sql,params,fmt,function(error,result){
+        if(error){
+            coreDB.doTransRollBack(tpoolconn);
+            outJson["status"]="FAIL";
+            outJson["message"]="Error In Get Round Method!"+error.message;
+            callback(null,outJson);
+        }else{                
+            var len = result.rows.length;                    
+            if(len > 0){
+                for(var i=0;i<len;i++){
+                    let nme = result.rows[i].nme;
+                    resultFinal.push(nme);
+                }
+                outJson["result"]=resultFinal;
+                outJson["status"]="SUCCESS";
+                outJson["message"]="SUCCESS";
+                callback(null,outJson);
+            }else{
+                outJson["result"]=resultFinal;
+                outJson["status"]="FAIL";
+                outJson["message"]="Sorry no result found";
+                callback(null,outJson);                   
+            }
         }
     })
 }
