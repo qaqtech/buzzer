@@ -10,7 +10,7 @@ exports.load = function(req, res) {
     var appKey = req.headers['appkey'] || '';
     var source = req.headers['source'] || 'buzzer';
 
-    if(method !='' && ds !='' && moduleKey !='' && appKey !='' && source != ''){
+    if(method !='' && ds !='' && moduleKey !='' && source != ''){
       var params = {};
       var cachedUrl = require('qaq-core-util').cachedUrl;
       ds=ds.toUpperCase();
@@ -112,11 +112,6 @@ exports.load = function(req, res) {
     outJson["result"]='';
     outJson["status"]="FAIL";
     outJson["message"]="Please Verify Method Name can not be blank!";
-    res.send(outJson);
-   }else if(appKey ==''){
-    outJson["result"]='';
-    outJson["status"]="FAIL";
-    outJson["message"]="Please Verify Application Key can not be blank!";
     res.send(outJson);
    }else if(source ==''){
     outJson["result"]='';
